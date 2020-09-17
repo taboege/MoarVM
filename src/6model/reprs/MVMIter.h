@@ -47,20 +47,22 @@ MVM_STATIC_INLINE MVMint64 MVM_iter_istrue_hash(MVMThreadContext *tc, MVMIter *i
     MVMStrHashTable *hashtable = &(((MVMHash *)body->target)->body.hashtable);
 
 #if HASH_DEBUG_ITER
-    if (body->hash_state.curr.owner != hashtable->ht_id) {
+    struct MVMStrHashTableControl *control = hashtable->table;
+    MVMuint64 ht_id = control ? control->ht_id : 0;
+    if (body->hash_state.curr.owner != ht_id) {
         MVM_oops(tc, "MVM_iter_istruehash called with an iterator from a different hash table: %016" PRIx64 " != %016" PRIx64,
-                 body->hash_state.curr.owner, hashtable->ht_id);
+                 body->hash_state.curr.owner, control ? control->ht_id : 0);
     }
     /* OK, to implement "delete at current iterator position" we need
      * to cheat somewhat. */
-    if (body->hash_state.curr.serial == hashtable->serial - 1
-        && body->hash_state.curr.pos == hashtable->last_delete_at) {
+    if (control && body->hash_state.curr.serial == control->serial - 1
+        && body->hash_state.curr.pos == control->last_delete_at) {
         /* The only action taken on the hash was to delete at the
          * current iterator. In which case, the "next" iterator is
          * valid (but has already been advanced beyond pos, so we
          * can't perform this test on it. So "fix up" its state to pass
          * muster with the HASH_DEBUG_ITER sanity tests. */
-        body->hash_state.next.serial = hashtable->serial;
+        body->hash_state.next.serial = control->serial;
     }
 #endif
 

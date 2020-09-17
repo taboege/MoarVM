@@ -155,7 +155,7 @@ Not all the optimisations described above are in place yet. Starting with
  * easier.
  */
 
-struct MVMStrHashTable {
+struct MVMStrHashTableControl {
     /* strictly void *, but this makes the pointer arithmetic easier */
     MVMuint8 *entries;
     MVMuint8 *metadata;
@@ -171,6 +171,10 @@ struct MVMStrHashTable {
     MVMuint8 key_right_shift;
     MVMuint8 entry_size;
     MVMuint8 probe_overflow_size;
+};
+
+struct MVMStrHashTable {
+    struct MVMStrHashTableControl *table;
 };
 
 struct MVMStrHashHandle {
@@ -199,13 +203,16 @@ MVM_STATIC_INLINE int MVM_str_hash_at_end(MVMThreadContext *tc,
                                            MVMStrHashTable *hashtable,
                                            MVMStrHashIterator iterator) {
 #if HASH_DEBUG_ITER
-    if (iterator.owner != hashtable->ht_id) {
+    struct MVMStrHashTableControl *control = hashtable->table;
+    MVMuint64 ht_id = control ? control->ht_id : 0;
+    if (iterator.owner != ht_id) {
         MVM_oops(tc, "MVM_str_hash_at_end called with an iterator from a different hash table: %016" PRIx64 " != %016" PRIx64,
-                 iterator.owner, hashtable->ht_id);
+                 iterator.owner, ht_id);
     }
-    if (iterator.serial != hashtable->serial) {
+    MVMuint32 serial = control ? control->serial : 0;
+    if (iterator.serial != serial) {
         MVM_oops(tc, "MVM_str_hash_at_end called with an iterator with the wrong serial number: %u != %u",
-                 iterator.serial, hashtable->serial);
+                 iterator.serial, serial);
     }
 #endif
     return iterator.pos == 0;
