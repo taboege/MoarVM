@@ -66,8 +66,8 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
 
     unsigned int probe_distance = 1;
     MVMHashNumItems bucket = MVM_ptr_hash_code(key) >> hashtable->key_right_shift;
-    MVMuint8 *entry_raw = hashtable->entries - bucket * sizeof(struct MVMPtrHashEntry);
-    MVMuint8 *metadata = hashtable->metadata + bucket;
+    MVMuint8 *entry_raw = MVM_ptr_hash_entries(hashtable) - bucket * sizeof(struct MVMPtrHashEntry);
+    MVMuint8 *metadata = MVM_ptr_hash_metadata(hashtable) + bucket;
     while (1) {
         if (*metadata < probe_distance) {
             /* this is our slot. occupied or not, it is our rightful place. */
@@ -131,15 +131,15 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
         ++metadata;
         entry_raw -= sizeof(struct MVMPtrHashEntry);
         assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(metadata < hashtable->metadata + hashtable->official_size + hashtable->max_items);
-        assert(metadata < hashtable->metadata + hashtable->official_size + 256);
+        assert(metadata < MVM_ptr_hash_metadata(hashtable) + hashtable->official_size + hashtable->max_items);
+        assert(metadata < MVM_ptr_hash_metadata(hashtable) + hashtable->official_size + 256);
     }
 }
 
 struct MVMPtrHashEntry *MVM_ptr_hash_lvalue_fetch(MVMThreadContext *tc,
                                                   MVMPtrHashTable *hashtable,
                                                   const void *key) {
-    if (MVM_UNLIKELY(hashtable->entries == NULL)) {
+    if (MVM_UNLIKELY(MVM_ptr_hash_entries(hashtable) == NULL)) {
         hash_initial_allocate(hashtable);
     }
     else if (MVM_UNLIKELY(hashtable->cur_items >= hashtable->max_items)) {
@@ -153,8 +153,8 @@ struct MVMPtrHashEntry *MVM_ptr_hash_lvalue_fetch(MVMThreadContext *tc,
         }
 
         MVMuint32 true_size =  hash_true_size(hashtable);
-        MVMuint8 *entry_raw_orig = hashtable->entries;
-        MVMuint8 *metadata_orig = hashtable->metadata;
+        MVMuint8 *entry_raw_orig = MVM_ptr_hash_entries(hashtable);
+        MVMuint8 *metadata_orig = MVM_ptr_hash_metadata(hashtable);
 
         hash_grow(hashtable);
 
@@ -208,14 +208,14 @@ void MVM_ptr_hash_insert(MVMThreadContext *tc,
 uintptr_t MVM_ptr_hash_fetch_and_delete(MVMThreadContext *tc,
                                         MVMPtrHashTable *hashtable,
                                         const void *key) {
-    if (MVM_UNLIKELY(hashtable->entries == NULL)) {
+    if (MVM_UNLIKELY(MVM_ptr_hash_entries(hashtable) == NULL)) {
         /* Should this be an oops? */
         return 0;
     }
     unsigned int probe_distance = 1;
     MVMHashNumItems bucket = MVM_ptr_hash_code(key) >> hashtable->key_right_shift;
-    MVMuint8 *entry_raw = hashtable->entries - bucket * sizeof(struct MVMPtrHashEntry);
-    uint8_t *metadata = hashtable->metadata + bucket;
+    MVMuint8 *entry_raw = MVM_ptr_hash_entries(hashtable) - bucket * sizeof(struct MVMPtrHashEntry);
+    uint8_t *metadata = MVM_ptr_hash_metadata(hashtable) + bucket;
     while (1) {
         if (*metadata == probe_distance) {
             struct MVMPtrHashEntry *entry = (struct MVMPtrHashEntry *) entry_raw;
@@ -275,7 +275,7 @@ uintptr_t MVM_ptr_hash_fetch_and_delete(MVMThreadContext *tc,
         ++metadata;
         entry_raw -= sizeof(struct MVMPtrHashEntry);
         assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(metadata < hashtable->metadata + hashtable->official_size + hashtable->max_items);
-        assert(metadata < hashtable->metadata + hashtable->official_size + 256);
+        assert(metadata < MVM_ptr_hash_metadata(hashtable) + hashtable->official_size + hashtable->max_items);
+        assert(metadata < MVM_ptr_hash_metadata(hashtable) + hashtable->official_size + 256);
     }
 }
