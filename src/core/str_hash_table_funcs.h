@@ -21,6 +21,28 @@ void MVM_str_hash_build(MVMThreadContext *tc,
                         MVMuint32 entry_size,
                         MVMuint32 entries);
 
+/* This code assumes that the destination hash is uninitialised - ie not even
+ * MVM_str_hash_build has been called upon it. */
+MVM_STATIC_INLINE void MVM_str_hash_shallow_copy(MVMThreadContext *tc,
+                                                 MVMStrHashTable *source,
+                                                 MVMStrHashTable *dest) {
+    const struct MVMStrHashTableControl *control = source->table;
+    if (!control)
+        return;
+    size_t actual_items = MVM_str_hash_kompromat(control);
+    size_t entries_size = control->entry_size * actual_items;
+    size_t metadata_size = actual_items + 1;
+    const char *start = (const char *)control - entries_size;
+    size_t total_size
+        = entries_size + sizeof (struct MVMStrHashTableControl) + metadata_size;
+    char *target = MVM_malloc(total_size);
+    memcpy(target, start, total_size);
+    dest->table = (struct MVMStrHashTableControl *)(target + entries_size);
+#if HASH_DEBUG_ITER
+    dest->table->ht_id = MVM_proc_rand_i(tc);
+#endif
+}
+
 MVM_STATIC_INLINE MVMuint64 MVM_str_hash_code(MVMThreadContext *tc,
                                               MVMuint64 salt,
                                               MVMString *key) {
